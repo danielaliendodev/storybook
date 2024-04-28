@@ -1,24 +1,36 @@
 import { FC } from 'react'
-import { Task as TaskInterface } from '../interfaces/Task'
+import { Task as TaskInterface, TaskState } from '../interfaces/Task'
 import { Task } from './Task'
+import { useDispatch, useSelector } from 'react-redux'
+import { updateTaskState } from '../lib/store'
 
-interface Props {
-    loading: boolean
-    tasks: TaskInterface[]
-    onArchiveTask: (id: TaskInterface['id']) => void
-    onPinTask: (id: TaskInterface['id']) => void
-}
+export const TaskList: FC = () => {
+    const dispatch = useDispatch()
 
-export const TaskList: FC<Props> = ({
-    loading,
-    tasks,
-    onPinTask,
-    onArchiveTask,
-}: any) => {
-    const events = {
-        onPinTask,
-        onArchiveTask,
+    // We're retrieving our state from the store
+    const tasks = useSelector((state: any) => {
+        const tasksInOrder = [
+            ...state.taskbox.tasks.filter((t: TaskInterface) => t.state === TaskState.TASK_PINNED),
+            ...state.taskbox.tasks.filter((t: TaskInterface) => t.state !==  TaskState.TASK_PINNED),
+        ]
+        const filteredTasks = tasksInOrder.filter(
+            (t) => t.state === TaskState.TASK_INBOX || t.state ===  TaskState.TASK_PINNED,
+        )
+        return filteredTasks
+    })
+
+    const { status } = useSelector((state: any) => state?.taskbox)
+
+    const pinTask = (value: TaskInterface['id']) => {
+        // We're dispatching the Pinned event back to our store
+        dispatch(updateTaskState({ id: value, newTaskState: 'TASK_PINNED' }))
     }
+
+    const archiveTask = (value: TaskInterface['id']) => {
+        // We're dispatching the Archive event back to our store
+        dispatch(updateTaskState({ id: value, newTaskState: 'TASK_ARCHIVED' }))
+    }
+
     const LoadingRow = (
         <div className="loading-item">
             <span className="glow-checkbox" />
@@ -27,18 +39,20 @@ export const TaskList: FC<Props> = ({
             </span>
         </div>
     )
-    if (loading) {
-        return (
-            <div className="list-items" data-testid="loading" key={'loading'}>
-                {LoadingRow}
-                {LoadingRow}
-                {LoadingRow}
-                {LoadingRow}
-                {LoadingRow}
-                {LoadingRow}
-            </div>
-        )
+
+    if (status === 'loading') {
+      return (
+        <div className="list-items" data-testid="loading" key={"loading"}>
+          {LoadingRow}
+          {LoadingRow}
+          {LoadingRow}
+          {LoadingRow}
+          {LoadingRow}
+          {LoadingRow}
+        </div>
+      );
     }
+
     if (tasks.length === 0) {
         return (
             <div className="list-items" key={'empty'} data-testid="empty">
@@ -51,14 +65,15 @@ export const TaskList: FC<Props> = ({
         )
     }
 
-    const tasksInOrder = [
-        ...tasks.filter((t: any) => t.state === 'TASK_PINNED'),
-        ...tasks.filter((t: any) => t.state !== 'TASK_PINNED'),
-    ]
     return (
-        <div className="list-items">
-            {tasksInOrder.map((task) => (
-                <Task key={task.id} task={task} {...events} />
+        <div className="list-items" data-testid="success" key={'success'}>
+            {tasks.map((task) => (
+                <Task
+                    key={task.id}
+                    task={task}
+                    onPinTask={(task) => pinTask(task)}
+                    onArchiveTask={(task) => archiveTask(task)}
+                />
             ))}
         </div>
     )
