@@ -1,32 +1,61 @@
- 
 /* A simple redux store/actions/reducer implementation.
  * A true app would be more complex and separated into different files.
  */
-import { configureStore, createSlice } from '@reduxjs/toolkit';
-import { Task, TaskState } from '../interfaces/Task';
+import {
+    configureStore,
+    createSlice,
+    createAsyncThunk, 
+} from '@reduxjs/toolkit'
+import { Task, TaskState } from '../interfaces/Task'
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
 
 /*
  * The initial state of our store when the app loads.
  * Usually, you would fetch this from a server. Let's not worry about that now
  */
 const defaultTasks: Task[] = [
-  { id: '1', title: 'Something', state: TaskState.TASK_INBOX },
-  { id: '2', title: 'Something more', state: TaskState.TASK_INBOX },
-  { id: '3', title: 'Something else', state: TaskState.TASK_INBOX },
-  { id: '4', title: 'Something again', state: TaskState.TASK_INBOX },
-];
+    { id: '1', title: 'Something', state: TaskState.TASK_INBOX },
+    { id: '2', title: 'Something more', state: TaskState.TASK_INBOX },
+    { id: '3', title: 'Something else', state: TaskState.TASK_INBOX },
+    { id: '4', title: 'Something again', state: TaskState.TASK_INBOX },
+]
+
+export enum TaskBoxDataState {
+    IDLE = 'idle',
+    LOADING = 'loading',
+    SUCCEEDED = 'succeeded',
+    FAILED = 'failed',
+}
 
 export interface TaskBoxDataInterface {
-  tasks: Task[],
-  status: 'idle',
-  error: null,
+    tasks: Task[]
+    status: TaskBoxDataState
+    error: null | string
 }
 
 const TaskBoxData: TaskBoxDataInterface = {
-  tasks: defaultTasks,
-  status: 'idle',
-  error: null,
-};
+    tasks: defaultTasks,
+    status: TaskBoxDataState.IDLE,
+    error: null,
+}
+
+/*
+ * Creates an asyncThunk to fetch tasks from a remote endpoint.
+ * You can read more about Redux Toolkit's thunks in the docs:
+ * https://redux-toolkit.js.org/api/createAsyncThunk
+ */
+export const fetchTasks = createAsyncThunk('todos/fetchTodos', async () => {
+    const response = await fetch(
+        'https://jsonplaceholder.typicode.com/todos?userId=1',
+    )
+    const data = await response.json()
+    const result = data.map((task: Task) => ({
+        id: `${task.id}`,
+        title: task.title,
+        state: task.completed ? TaskState.TASK_ARCHIVED : TaskState.TASK_INBOX,
+    }))
+    return result
+})
 
 /*
  * The store is created here.
@@ -34,18 +63,41 @@ const TaskBoxData: TaskBoxDataInterface = {
  * https://redux-toolkit.js.org/api/createSlice
  */
 const TasksSlice = createSlice({
-  name: 'taskbox',
-  initialState: TaskBoxData,
-  reducers: {
-    updateTaskState: (state, action) => {
-      const { id, newTaskState } = action.payload;
-      const task = state.tasks.findIndex((task) => task.id === id);
-      if (task >= 0) {
-        state.tasks[task].state = newTaskState;
-      }
+    name: 'taskbox',
+    initialState: TaskBoxData,
+    reducers: {
+        updateTaskState: (state, action) => {
+            const { id, newTaskState } = action.payload
+            const task = state.tasks.findIndex((task) => task.id === id)
+            if (task >= 0) {
+                state.tasks[task].state = newTaskState
+            }
+        },
     },
-  },
-});
+    /*
+     * Extends the reducer for the async actions
+     * You can read more about it at https://redux-toolkit.js.org/api/createAsyncThunk
+     */
+    extraReducers(builder) {
+        builder
+            .addCase(fetchTasks.pending, (state) => {
+                state.status = TaskBoxDataState.LOADING
+                state.error = null
+                state.tasks = []
+            })
+            .addCase(fetchTasks.fulfilled, (state, action) => {
+                state.status = TaskBoxDataState.SUCCEEDED
+                state.error = null
+                // Add any fetched tasks to the array
+                state.tasks = action.payload
+            })
+            .addCase(fetchTasks.rejected, (state) => {
+                state.status = TaskBoxDataState.FAILED
+                state.error = 'Something went wrong'
+                state.tasks = []
+            })
+    },
+})
 
 // The actions contained in the slice are exported for usage in our components
 export const { updateTaskState } = TasksSlice.actions;
@@ -57,8 +109,14 @@ export const { updateTaskState } = TasksSlice.actions;
  */
 const store = configureStore({
   reducer: {
-    taskbox: TasksSlice.reducer,
+      taskbox: TasksSlice.reducer,
   },
-});
+})
 
-export default store;
+export type RootState = ReturnType<typeof store.getState>
+
+export type AppDispatch = typeof store.dispatch
+export const useAppDispatch = useDispatch.withTypes<AppDispatch>()
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+
+export default store
