@@ -29,7 +29,15 @@ export const TaskList: FC = () => {
 
     const pinTask = (value: TaskInterface['id']) => {
         // We're dispatching the Pinned event back to our store
-        dispatch(updateTaskState({ id: value, newTaskState: TaskState.TASK_PINNED }))
+
+        const currentState = tasks.find(task => task.id === value)?.state
+        
+        dispatch(updateTaskState({
+             id: value, 
+            newTaskState: currentState !== TaskState.TASK_PINNED 
+                ? TaskState.TASK_PINNED
+                : TaskState.TASK_INBOX
+         }))
     }
 
     const archiveTask = (value: TaskInterface['id']) => {
