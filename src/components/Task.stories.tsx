@@ -1,3 +1,4 @@
+import { TaskState } from '../interfaces/Task'
 import { Task } from './Task'
 
 export default {
@@ -11,16 +12,17 @@ export const Default = {
         task: {
             id: '1',
             title: 'Test Task',
-            state: 'TASK_INBOX',
+            state: TaskState.TASK_INBOX,
         },
     },
 }
 
 export const Pinned = {
     args: {
-        task: {
+        task: { 
             ...Default.args.task,
-            state: 'TASK_PINNED',
+            id: '2',
+            state: TaskState.TASK_PINNED,
         },
     },
 }
@@ -29,7 +31,8 @@ export const Archived = {
     args: {
         task: {
             ...Default.args.task,
-            state: 'TASK_ARCHIVED',
+            id: '3',
+            state: TaskState.TASK_ARCHIVED,
         },
     },
 }
